@@ -1,6 +1,6 @@
 /*
 MEDIANE AI DIAGNOSTIC
-version: 1.0
+version: 1.1 (Query by Session ID)
 model: gemini-2.5-flash
 date: 2026-03-09
 */
@@ -14,37 +14,61 @@ const truncate = (text, maxLength = 2000) => {
 
 exports.updateLead = async (req, res) => {
     try {
-        const { diagnostic_id, prenom, nom, entreprise, email, fonction } = req.body;
+        console.log("📥 [LEAD] Reçu:", JSON.stringify(req.body, null, 2));
 
-        if (!diagnostic_id) {
-            console.warn("⚠️ Validation échouée : diagnostic_id manquant");
-            return res.status(400).json({ status: 'error', message: 'diagnostic_id est obligatoire.' });
-        }
-        if (!email) {
-            console.warn("⚠️ Validation échouée : email manquant");
-            return res.status(400).json({ status: 'error', message: 'L\'email est obligatoire.' });
+        // Mapping Frontend -> Backend
+        const { 
+            session_id, 
+            firstName, 
+            lastName, 
+            company, 
+            email, 
+            role 
+        } = req.body;
+
+        if (!session_id) {
+            return res.status(400).json({ status: 'error', message: 'session_id obligatoire.' });
         }
 
-        const pageTitle = `${truncate(nom, 50)} ${truncate(prenom, 50)}`.trim() || "Lead Sans Nom";
+        // 1. RECHERCHE de la page via ID Session
+        console.log(`🔍 Recherche du diagnostic pour session: ${session_id}`);
         
-        // Mise à jour via diagnostic_id (ID natif Notion)
+        const query = await notion.databases.query({
+            database_id: process.env.NOTION_DATABASE_ID,
+            filter: {
+                property: "ID Session",
+                rich_text: {
+                    equals: session_id
+                }
+            }
+        });
+
+        if (query.results.length === 0) {
+            console.warn(`⚠️ Aucun diagnostic trouvé pour la session: ${session_id}`);
+            return res.status(404).json({ status: 'error', message: 'Diagnostic introuvable pour cette session.' });
+        }
+
+        const pageId = query.results[0].id;
+        const pageTitle = `${truncate(lastName, 50)} ${truncate(firstName, 50)}`.trim() || "Lead Sans Nom";
+
+        // 2. MISE À JOUR de la page trouvée
         await notion.pages.update({
-            page_id: diagnostic_id,
+            page_id: pageId,
             properties: {
                 "Nom": {
                     title: [{ text: { content: pageTitle } }]
                 },
                 "Prénom": {
-                    rich_text: [{ text: { content: truncate(prenom) } }]
+                    rich_text: [{ text: { content: truncate(firstName) } }]
                 },
                 "Nom famille": {
-                    rich_text: [{ text: { content: truncate(nom) } }]
+                    rich_text: [{ text: { content: truncate(lastName) } }]
                 },
                 "Entreprise": {
-                    rich_text: [{ text: { content: truncate(entreprise) } }]
+                    rich_text: [{ text: { content: truncate(company) } }]
                 },
                 "Fonction": {
-                    rich_text: [{ text: { content: truncate(fonction) } }]
+                    rich_text: [{ text: { content: truncate(role) } }]
                 },
                 "Email": {
                     email: email
@@ -55,24 +79,15 @@ exports.updateLead = async (req, res) => {
             }
         });
 
-        console.log(`✅ [LEAD MIS À JOUR] Page: ${diagnostic_id} | ${email}`);
+        console.log(`✅ [LEAD MIS À JOUR] Page: ${pageId} | Email: ${email}`);
 
         res.status(200).json({
             status: 'success',
-            message: 'Lead enregistré et qualifié avec succès.'
+            message: 'Lead lié au diagnostic avec succès.'
         });
 
     } catch (error) {
         console.error('❌ [ERREUR NOTION LEAD]', error.body || error.message);
-        
-        if (error.code === 'object_not_found') {
-            return res.status(404).json({ status: 'error', message: 'Diagnostic introuvable.' });
-        }
-
-        res.status(500).json({ 
-            status: 'error', 
-            message: 'Erreur lors de la mise à jour du lead.',
-            details: error.message 
-        });
+        res.status(500).json({ status: 'error', message: 'Erreur Notion', details: error.message });
     }
 };
