@@ -29,6 +29,26 @@ const PORT = process.env.PORT || 3000;
 const allowedOrigins = [
     'https://medianestrategie.fr',
     'https://www.medianestrategie.fr',
+    'http://localhost:5500', 
+    'http://127.0.0.1:5500',
+    'http://localhost:3001', // Ajouté pour vos tests Live Server
+    'http://127.0.0.1:3001', // Ajouté pour vos tests Live Server
+    'null' // <--- INDISPENSABLE : Autorise Playwright quand il utilise "file:///"
+];
+
+app.use(cors({
+    origin: function (origin, callback) {
+        // Autorise les requêtes sans origine (curl, mobile)
+        if (!origin) return callback(null, true);
+        
+        // Vérifie si l'origine est dans notre liste blanche
+        if (allowedOrigins.indexOf(origin) === -1) {
+            console.warn(`[CORS BLOQUÉ] Tentative rejetée depuis l'origine : ${origin}`);
+            return callback(new Error('La politique CORS interdit l’accès depuis cette origine.'), false);
+        }
+        return callback(null, true);
+    }
+}));
 
     // DEV LOCAL
     'http://localhost:3000',
