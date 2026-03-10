@@ -29,8 +29,14 @@ const PORT = process.env.PORT || 3000;
 const allowedOrigins = [
     'https://medianestrategie.fr',
     'https://www.medianestrategie.fr',
-    'http://localhost:5500', // Dev local
-    'http://127.0.0.1:5500'  // Dev local
+
+    // DEV LOCAL
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'http://localhost:3001',
+    'http://127.0.0.1:3001',
+    'http://localhost:5500',
+    'http://127.0.0.1:5500'
 ];
 
 app.use(cors({
