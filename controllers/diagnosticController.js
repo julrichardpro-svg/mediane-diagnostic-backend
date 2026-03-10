@@ -38,22 +38,31 @@ exports.createDiagnostic = async (req, res) => {
         const tension = analysis?.tension || "";
         const recommandation = analysis?.recommendation || "";
 
-        // 2. Historique (Blocks)
+        // 2. Historique (Blocks & Texte propre)
+        let readableTranscript = "";
         const childrenBlocks = [];
+        
         childrenBlocks.push({
             object: 'block',
             type: 'heading_2',
             heading_2: { rich_text: [{ text: { content: 'Historique de conversation' } }] }
         });
 
-        // Le frontend envoie 'history', on itère dessus
         if (Array.isArray(history)) {
             history.forEach(msg => {
-                const role = msg.role === 'user' ? '👤 Utilisateur' : '🤖 Agent';
                 const rawContent = (msg.parts && msg.parts[0] && msg.parts[0].text) ? msg.parts[0].text : "";
+                
+                // 🛑 EXCLUSION : On ignore le prompt système caché pour ne pas polluer Notion
+                if (rawContent.includes("Tu es l'Agent Stratégique de MÉDIANE")) return;
+
+                const role = msg.role === 'user' ? '👤 Prospect' : '🤖 Agent';
                 const cleanContent = truncate(rawContent.replace(/\*/g, ''), 1900); 
 
                 if (cleanContent) {
+                    // On construit le texte propre pour la colonne "Conversation"
+                    readableTranscript += `${role} : ${cleanContent}\n\n`;
+
+                    // On construit les blocs pour le contenu de la page Notion
                     childrenBlocks.push({
                         object: 'block',
                         type: 'paragraph',
@@ -62,7 +71,7 @@ exports.createDiagnostic = async (req, res) => {
                                 { 
                                     type: 'text', 
                                     text: { content: `${role}: ` },
-                                    annotations: { bold: true } // <-- CORRECTION : Sorti de l'objet "text"
+                                    annotations: { bold: true }
                                 },
                                 { 
                                     type: 'text', 
@@ -75,7 +84,8 @@ exports.createDiagnostic = async (req, res) => {
             });
         }
 
-        let conversationSummary = truncate(JSON.stringify(history || []), 1990);
+        // On coupe à 1990 caractères car les cellules Notion ont une limite
+        const conversationSummary = truncate(readableTranscript.trim() || "Aucune conversation lisible.", 1990);
 
         // 3. Création Page Notion
         const response = await notion.pages.create({
