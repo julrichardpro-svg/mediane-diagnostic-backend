@@ -59,8 +59,15 @@ exports.createDiagnostic = async (req, res) => {
                         type: 'paragraph',
                         paragraph: {
                             rich_text: [
-                                { type: 'text', text: { content: `${role}: `, annotations: { bold: true } } },
-                                { type: 'text', text: { content: cleanContent } }
+                                { 
+                                    type: 'text', 
+                                    text: { content: `${role}: ` },
+                                    annotations: { bold: true } // <-- CORRECTION : Sorti de l'objet "text"
+                                },
+                                { 
+                                    type: 'text', 
+                                    text: { content: cleanContent } 
+                                }
                             ]
                         }
                     });
