@@ -13,6 +13,8 @@ if (!process.env.NOTION_API_KEY) {
     process.exit(1);
 }
 
+console.log("NOTION TOKEN LENGTH:", process.env.NOTION_API_KEY.length);
+
 const notion = new Client({
     auth: process.env.NOTION_API_KEY,
 });
